@@ -150,13 +150,13 @@ install_service() {
 
     read -p "Do you want to create and start the systemd service file with the above content? (Y/n): " yn
     case $yn in
-        [Yy]* )
-            echo "$SERVICE_FILE_CONTENT" | sudo tee /etc/systemd/system/$SERVICE_NAME > /dev/null
+        [Nn]* )
+            echo "Service file not created. You can manually set it up later if needed."
+            ;;
+        * ) echo "$SERVICE_FILE_CONTENT" | sudo tee /etc/systemd/system/$SERVICE_NAME > /dev/null
             sudo systemctl enable $SERVICE_NAME
             sudo systemctl start $SERVICE_NAME
             echo "$APP_NAME service has been started successfully."
-            ;;
-        * ) echo "Service file not created. You can manually set it up later if needed."
             ;;
     esac
 }
