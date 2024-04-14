@@ -32,6 +32,16 @@ func Run(version string) error {
 	// Create a new root command
 	subcommands := []*ff.Command{
 		newServerCmd(cfg),
+		{
+			Name:      "version",
+			Usage:     "version",
+			ShortHelp: "Prints the version",
+			Exec: func(_ context.Context, _ []string) error {
+				fmt.Println(version) //nolint:forbidigo // We want to print to stdout
+
+				return nil
+			},
+		},
 	}
 	cmd := newRootCmd(version, cfg, subcommands)
 
