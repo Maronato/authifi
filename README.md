@@ -1,7 +1,6 @@
 # 🛜 Authifi
 
-## Introduction
-Hey there! Authifi is a simple tool for easier MAC-based VLAN assignment on Unifi routers. It’s designed to be user-friendly and straightforward, with a Telegram bot for easy control and notifications.
+Authifi is a simple tool for easier MAC-based VLAN assignment on Unifi routers. It’s designed to be user-friendly and straightforward, with a Telegram bot for easy control and notifications.
 
 Every time a new device connects to your network, Authifi can automatically assign it to a default VLAN and ask you what to do next via Telegram. You can then choose to assign the device to a different VLAN for future connections or block it entirely.
 
