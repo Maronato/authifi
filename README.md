@@ -11,7 +11,7 @@ If you're like me you've probably tried to set up dynamic VLANs on your Unifi ne
 Authifi solves this problem by letting you define a default VLAN for new devices and letting you quickly assign other VLANs or block devices in real-time from Telegram.
 
 
-[![Authifi Demo](.github/assets/demo.mp4)](.github/assets/demo.mp4)
+![Authifi Demo](.github/assets//demo.gif)
 
 ## Key Features
 - **Default VLANs:** Assign new devices to a default VLAN automatically.
