@@ -51,7 +51,7 @@ openssl rand -hex 16
 ### Step 7: Run the installation script
 1. Run the following command to download and install Authifi:
 ```bash
-sh -c 'sh -c "$(curl -sL https://raw.githubusercontent.com/Maronato/authifi/main/install.sh)"'
+bash -c 'bash -c "$(curl -sL https://raw.githubusercontent.com/Maronato/authifi/main/install.sh)"'
 ```
 2. Follow the script prompts to configure Authifi with your details.
 
