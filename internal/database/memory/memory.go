@@ -1,8 +1,12 @@
 package memorydatabase
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/maronato/authifi/internal/database"
 )
@@ -35,6 +39,15 @@ func (d *MemoryDatabase) GetVLANs() ([]database.VLAN, error) {
 	for _, vlan := range d.vlans {
 		vlans = append(vlans, *vlan)
 	}
+
+	// Sort VLANs by their ID
+	slices.SortFunc(vlans, func(a, b database.VLAN) int {
+		// Convert IDs to integers for comparison
+		idA, _ := strconv.Atoi(a.ID)
+		idB, _ := strconv.Atoi(b.ID)
+
+		return cmp.Compare(idA, idB)
+	})
 
 	return vlans, nil
 }
@@ -107,6 +120,11 @@ func (d *MemoryDatabase) GetUsers() ([]database.User, error) {
 		users = append(users, *user)
 	}
 
+	// Sort users by their username
+	slices.SortFunc(users, func(a, b database.User) int {
+		return cmp.Compare(strings.ToLower(a.Username), strings.ToLower(b.Username))
+	})
+
 	return users, nil
 }
 
@@ -164,6 +182,11 @@ func (d *MemoryDatabase) GetBlockedUsers() ([]database.BlockedUser, error) {
 	for _, blockedUser := range d.blockedUsers {
 		blockedUsers = append(blockedUsers, *blockedUser)
 	}
+
+	// Sort blocked users by their username
+	slices.SortFunc(blockedUsers, func(a, b database.BlockedUser) int {
+		return cmp.Compare(strings.ToLower(a.Username), strings.ToLower(b.Username))
+	})
 
 	return blockedUsers, nil
 }
