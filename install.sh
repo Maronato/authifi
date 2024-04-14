@@ -226,7 +226,7 @@ main() {
     download_and_install $LATEST_VERSION
 
     # Create the service file if the user chose to
-    if [[ $create_service -eq 1 ]]; then
+    if [[ $SHOULD_SYSTEMD -eq 1 ]]; then
         install_service
     fi
 
