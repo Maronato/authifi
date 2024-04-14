@@ -3,6 +3,7 @@ package yamldatabase
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -76,6 +77,8 @@ func (d *YAMLDatabase) watch(ctx context.Context) {
 	if err := d.watcher.Add(d.filePath); err != nil {
 		l.Error("error watching database file: %v", err)
 	}
+
+	l.Debug("started yaml database watcher", slog.String("file", d.filePath))
 
 	// Create a debounce timer to avoid multiple reloads
 	var debounceTimer *time.Timer
@@ -295,8 +298,6 @@ func (d *YAMLDatabase) UnblockUser(username string) error {
 func (d *YAMLDatabase) Open(ctx context.Context) error {
 	l := logging.FromCtx(ctx)
 
-	l.Debug("opening database")
-
 	if err := d.load(); err != nil {
 		return fmt.Errorf("error initializing database: %w", err)
 	}
@@ -304,7 +305,7 @@ func (d *YAMLDatabase) Open(ctx context.Context) error {
 	// Start the watcher
 	go d.watch(ctx)
 
-	l.Debug("database opened")
+	l.Debug("opened yaml database", slog.String("file", d.filePath))
 
 	return nil
 }
@@ -312,8 +313,6 @@ func (d *YAMLDatabase) Open(ctx context.Context) error {
 // Close closes the database.
 func (d *YAMLDatabase) Close(ctx context.Context) error {
 	l := logging.FromCtx(ctx)
-
-	l.Debug("closing database")
 
 	// Make sure the database is up to date before closing
 	if err := d.save(); err != nil {
@@ -325,7 +324,7 @@ func (d *YAMLDatabase) Close(ctx context.Context) error {
 		return fmt.Errorf("error closing watcher: %w", err)
 	}
 
-	l.Debug("database closed")
+	l.Debug("yaml database closed", slog.String("file", d.filePath))
 
 	return nil
 }

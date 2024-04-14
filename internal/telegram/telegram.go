@@ -3,9 +3,9 @@ package telegram
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/maronato/authifi/internal/config"
@@ -36,6 +36,8 @@ type BotServer struct {
 	db database.Database
 	// cache is the cache for the VLAN select data.
 	cache *lru.Cache[string, *VLANSelectData]
+	// l is the logger.
+	l *slog.Logger
 }
 
 // NewBotServer creates a new BotServer.
@@ -137,7 +139,20 @@ func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database)
 	cache := lru.NewLRUCache[string, *VLANSelectData](VLANSelectCacheSize)
 	registerNewUserHandler(bot, db, cache)
 
-	return &BotServer{bot: bot, chatIDs: chatIDs, db: db, cache: cache}, nil
+	// Replace everything after ":" and before the last 5 characters with "*"
+	privacyToken := cfg.TelegramBotToken
+
+	tokenSplit := strings.Split(privacyToken, ":")
+	if len(tokenSplit) > 1 {
+		starLen := len(tokenSplit[1]) - 5 //nolint:gomnd // Won't create a constant for this
+		privacyToken = tokenSplit[0] + ":" + strings.Repeat("*", starLen) + tokenSplit[1][starLen:]
+	} else {
+		privacyToken = strings.Repeat("*", len(privacyToken))
+	}
+
+	l.Debug("Bot setup complete", slog.Any("chatIDs", chatIDs), slog.Int("cacheSize", VLANSelectCacheSize), slog.Int("randomIDLength", RandomIDLength), slog.Duration("pollerTimeout", PollerTimeout), slog.String("token", privacyToken))
+
+	return &BotServer{bot: bot, chatIDs: chatIDs, db: db, cache: cache, l: l}, nil
 }
 
 // StartBot starts the Telegram bot.
@@ -147,7 +162,7 @@ func (bs *BotServer) StartBot(ctx context.Context) error {
 	l := logging.FromCtx(ctx)
 
 	eg.Go(func() error {
-		l.Debug("Starting Telegram bot")
+		l.Info("Starting Telegram bot with " + fmt.Sprint(len(bs.chatIDs)) + " allowed chat IDs")
 
 		bs.bot.Start()
 
@@ -175,6 +190,8 @@ func (bs *BotServer) StartBot(ctx context.Context) error {
 
 // NotifyLoginAttempt sends a message to all the chat IDs when a login attempt is detected.
 func (bs *BotServer) NotifyLoginAttempt(username, password, macAddress string) {
+	bs.l.Debug("Sending login attempt notification", slog.String("username", username), slog.String("macAddress", macAddress))
+
 	for _, chatID := range bs.chatIDs {
 		recipient := tele.ChatID(chatID)
 		data := &VLANSelectData{
@@ -186,7 +203,7 @@ func (bs *BotServer) NotifyLoginAttempt(username, password, macAddress string) {
 		msg, markup := createNotifyMessage(bs.bot, bs.cache, data)
 
 		if _, err := bs.bot.Send(recipient, msg, markup, tele.ModeMarkdown); err != nil {
-			log.Printf("error sending message to chat %d: %v\n", chatID, err)
+			bs.l.Error("Error sending message", slog.Any("error", err), slog.Int64("chatID", chatID), slog.String("message", msg))
 		}
 	}
 }

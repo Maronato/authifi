@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/maronato/authifi/internal/config"
@@ -127,7 +128,7 @@ func StartServer(ctx context.Context, cfg *config.Config, db database.Database, 
 			l.Debug("error getting user", slog.Any("error", err))
 
 			// Notify the user of the login attempt
-			botServer.NotifyLoginAttempt(username, password, macAddress)
+			go botServer.NotifyLoginAttempt(username, password, macAddress)
 		} else if user.Password != password {
 			// If the password is incorrect, reject the request
 			l.Debug("incorrect password for user")
@@ -198,9 +199,20 @@ func StartServer(ctx context.Context, cfg *config.Config, db database.Database, 
 		ErrorLog:     logging.AsStdLogger(l),
 	}
 
+	// Omit everything between the third and last 3 characters of the secret
+	privacySecret := cfg.RadiusSecret
+	if len(privacySecret) > 6 { //nolint:gomnd // Not a magic number
+		startLength := len(privacySecret) - 6 //nolint:gomnd // Not a magic number
+		privacySecret = privacySecret[:3] + strings.Repeat("*", startLength) + privacySecret[startLength+3:]
+	} else {
+		privacySecret = strings.Repeat("*", len(privacySecret))
+	}
+
+	l.Debug("Configured RADIUS server", slog.String("addr", cfg.GetAddr()), slog.String("secret", privacySecret))
+
 	// Start the server
 	eg.Go(func() error {
-		l.Info("Starting RADIUS server")
+		l.Info("Starting RADIUS server on " + cfg.GetAddr())
 
 		if err := server.ListenAndServe(); err != nil {
 			return fmt.Errorf("error running server: %w", err)
