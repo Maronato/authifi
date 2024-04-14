@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Define constants
 USER="Maronato"
@@ -152,7 +152,7 @@ WantedBy=multi-user.target"
     echo "This is the service file content that will be used:"
     echo "$SERVICE_FILE_CONTENT"
 
-    read -p "Do you want to create and start the systemd service file with the above content? (y/N): " yn
+    read -p "Do you want to create and start the systemd service file with the above content? (Y/n): " yn
     case $yn in
         [Yy]* )
             echo "$SERVICE_FILE_CONTENT" | sudo tee /etc/systemd/system/$SERVICE_NAME > /dev/null
