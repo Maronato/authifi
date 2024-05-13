@@ -132,18 +132,19 @@ configure() {
 
 install_service() {
     SERVICE_FILE_CONTENT="[Unit]
-    Description=$APP_NAME Service
-    ConditionFileIsExecutable=$INSTALL_DIR/$TOOL_NAME
-    After=network.target
+Description=$APP_NAME Service
+ConditionFileIsExecutable=$INSTALL_DIR/$TOOL_NAME
+After=network.target
 
-    [Service]
-    StartLimitInterval=5
-    StartLimitBurst=10
-    ExecStart=$INSTALL_DIR/$TOOL_NAME serve -c $INSTALL_DIR/config
-    RestartSec=30
+[Service]
+StartLimitInterval=330
+StartLimitBurst=10
+ExecStart=$INSTALL_DIR/$TOOL_NAME serve -c $INSTALL_DIR/config
+Restart=always
+RestartSec=30
 
-    [Install]
-    WantedBy=multi-user.target"
+[Install]
+WantedBy=multi-user.target"
 
     echo "This is the service file content that will be used:"
     echo "$SERVICE_FILE_CONTENT"
