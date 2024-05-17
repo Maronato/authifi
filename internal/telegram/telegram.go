@@ -11,7 +11,6 @@ import (
 	"github.com/maronato/authifi/internal/config"
 	"github.com/maronato/authifi/internal/database"
 	"github.com/maronato/authifi/internal/logging"
-	"github.com/maronato/authifi/internal/lru"
 	"golang.org/x/sync/errgroup"
 	tele "gopkg.in/telebot.v3"
 	telemiddleware "gopkg.in/telebot.v3/middleware"
@@ -34,15 +33,17 @@ type BotServer struct {
 	chatIDs []int64
 	// db is the database.
 	db database.Database
-	// cache is the cache for the VLAN select data.
-	cache *lru.Cache[string, *VLANSelectData]
 	// l is the logger.
 	l *slog.Logger
+	// createNewDeviceMessage creates a notification message for a new device.
+	createNewDeviceMessage func(data *newDeviceData) (string, *tele.ReplyMarkup)
 }
 
 // NewBotServer creates a new BotServer.
 func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database) (*BotServer, error) {
 	l := logging.FromCtx(ctx)
+
+	onTextHandlers := []tele.HandlerFunc{}
 
 	// Create the bot
 	bot, err := tele.NewBot(tele.Settings{
@@ -88,18 +89,21 @@ func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database)
 		}
 	})
 
-	// This will be the default menu for the bot
-	menu := &tele.ReplyMarkup{ResizeKeyboard: true}
-	btnHelp := menu.Text("Help")
-
-	menu.Reply(
-		menu.Row(btnHelp),
-	)
-
 	bot.Handle("/start", func(c tele.Context) error {
-		// Send the welcome message and the menu
-		err := c.Send("Welcome to Authifi! Use /help to see the available commands.", menu, tele.ModeMarkdown)
+		err := bot.SetCommands(
+			[]tele.Command{
+				{Text: "/list", Description: "List all the devices"},
+				{Text: "/edit", Description: "Edit a device"},
+				{Text: "/help", Description: "Show help message"},
+			},
+			tele.CommandScope{Type: tele.CommandScopeChat, ChatID: c.Chat().ID},
+		)
 		if err != nil {
+			return fmt.Errorf("error setting commands: %w", err)
+		}
+
+		// Send the welcome message and the menu
+		if err := c.Send("Welcome to Authifi! Use /help to see the available commands.", tele.ModeMarkdown); err != nil {
 			return fmt.Errorf("error sending message: %w", err)
 		}
 
@@ -114,6 +118,8 @@ func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database)
 	
 	*Commands:*
 	- /start - Start interacting with the bot.
+	- /list - List all the devices.
+	- /edit <device> - Edit a device by its name or username.
 	- /help - Show this help message.
 	Other commands *may* be implemented in the future.
 
@@ -127,17 +133,66 @@ func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database)
 		return nil
 	})
 
-	bot.Handle(&btnHelp, func(c tele.Context) error {
-		if err := c.Send(helpMessage, tele.ModeMarkdown); err != nil {
+	bot.Handle("/list", func(c tele.Context) error {
+		devices, err := db.GetUsers()
+		if err != nil {
+			return fmt.Errorf("error getting devices: %w", err)
+		}
+
+		blockedDevices, err := db.GetBlockedUsers()
+		if err != nil {
+			return fmt.Errorf("error getting blocked devices: %w", err)
+		}
+
+		vlans, err := db.GetVLANs()
+		if err != nil {
+			return fmt.Errorf("error getting VLANs: %w", err)
+		}
+
+		// Create a map of VLANs for easy access
+		vlanMap := make(map[string]string, len(vlans))
+		for _, vlan := range vlans {
+			vlanMap[vlan.ID] = vlan.Name
+		}
+
+		msg := "*📋 Device List 📋*\n\n"
+
+		for _, device := range devices {
+			if device.Description == "" {
+				msg += fmt.Sprintf("• *%s* - %s\n", device.Username, vlanMap[device.VlanID])
+			} else {
+				msg += fmt.Sprintf("• *%s* (%s) - %s\n", device.Description, device.Username, vlanMap[device.VlanID])
+			}
+		}
+
+		msg += "\n*🚫 Blocked Devices 🚫*\n\n"
+		for _, device := range blockedDevices {
+			msg += fmt.Sprintf("• *%s*\n", device.Username)
+		}
+
+		if err := c.Send(msg, tele.ModeMarkdown); err != nil {
 			return fmt.Errorf("error sending message: %w", err)
 		}
 
 		return nil
 	})
 
-	// Setup new user handlers and cache
-	cache := lru.NewLRUCache[string, *VLANSelectData](VLANSelectCacheSize)
-	registerNewUserHandler(bot, db, cache)
+	// Setup new device handlers and cache
+	createNewDeviceMessage := registerNewDeviceFlow(bot, db, &onTextHandlers)
+
+	// Setup edit device handlers
+	registerEditDeviceFlow(bot, db, &onTextHandlers)
+
+	// Handle onText events
+	bot.Handle(tele.OnText, func(c tele.Context) error {
+		for _, handler := range onTextHandlers {
+			if err := handler(c); err != nil {
+				return fmt.Errorf("error handling text: %w", err)
+			}
+		}
+
+		return nil
+	})
 
 	// Replace everything after ":" and before the last 5 characters with "*"
 	privacyToken := cfg.TelegramBotToken
@@ -152,7 +207,7 @@ func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database)
 
 	l.Debug("Bot setup complete", slog.Any("chatIDs", chatIDs), slog.Int("cacheSize", VLANSelectCacheSize), slog.Int("randomIDLength", RandomIDLength), slog.Duration("pollerTimeout", PollerTimeout), slog.String("token", privacyToken))
 
-	return &BotServer{bot: bot, chatIDs: chatIDs, db: db, cache: cache, l: l}, nil
+	return &BotServer{bot: bot, chatIDs: chatIDs, db: db, createNewDeviceMessage: createNewDeviceMessage, l: l}, nil
 }
 
 // StartBot starts the Telegram bot.
@@ -192,15 +247,16 @@ func (bs *BotServer) StartBot(ctx context.Context) error {
 func (bs *BotServer) NotifyLoginAttempt(username, password, macAddress string) {
 	bs.l.Debug("Sending login attempt notification", slog.String("username", username), slog.String("macAddress", macAddress))
 
+	data := &newDeviceData{
+		Username:   username,
+		Password:   password,
+		MacAddress: macAddress,
+	}
+
 	for _, chatID := range bs.chatIDs {
 		recipient := tele.ChatID(chatID)
-		data := &VLANSelectData{
-			Username:   username,
-			Password:   password,
-			MacAddress: macAddress,
-		}
 
-		msg, markup := createNotifyMessage(bs.bot, bs.cache, data)
+		msg, markup := bs.createNewDeviceMessage(data)
 
 		if _, err := bs.bot.Send(recipient, msg, markup, tele.ModeMarkdown); err != nil {
 			bs.l.Error("Error sending message", slog.Any("error", err), slog.Int64("chatID", chatID), slog.String("message", msg))

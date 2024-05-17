@@ -209,6 +209,16 @@ func (d *YAMLDatabase) GetUser(username string) (database.User, error) {
 	return user, nil
 }
 
+// GetUserByDescription returns a user by its description.
+func (d *YAMLDatabase) GetUserByDescription(description string) (database.User, error) {
+	user, err := d.memory.GetUserByDescription(description)
+	if err != nil {
+		return database.User{}, fmt.Errorf("error getting user by description from memory database: %w", err)
+	}
+
+	return user, nil
+}
+
 // CreateUser creates a new user.
 func (d *YAMLDatabase) CreateUser(u database.User) error {
 	if err := d.memory.CreateUser(u); err != nil {

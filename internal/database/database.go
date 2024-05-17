@@ -40,6 +40,8 @@ type Database interface {
 	GetUsers() ([]User, error)
 	// GetUser returns a user by its username.
 	GetUser(username string) (User, error)
+	// GetUserByDescription returns a user by its description.
+	GetUserByDescription(description string) (User, error)
 	// CreateUser creates a new user.
 	CreateUser(u User) error
 	// UpdateUser updates a user.

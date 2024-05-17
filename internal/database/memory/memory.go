@@ -138,6 +138,17 @@ func (d *MemoryDatabase) GetUser(username string) (database.User, error) {
 	return *user, nil
 }
 
+// GetUserByDescription returns a user by its description.
+func (d *MemoryDatabase) GetUserByDescription(description string) (database.User, error) {
+	for _, user := range d.users {
+		if user.Description == description {
+			return *user, nil
+		}
+	}
+
+	return database.User{}, fmt.Errorf("error getting user by description %s: %w", description, database.ErrUserNotFound)
+}
+
 // CreateUser creates a new user.
 func (d *MemoryDatabase) CreateUser(u database.User) error {
 	if _, ok := d.users[u.Username]; ok {
@@ -172,6 +183,9 @@ func (d *MemoryDatabase) DeleteUser(username string) error {
 	}
 
 	delete(d.users, username)
+
+	// Also delete the user from the blocked users
+	delete(d.blockedUsers, username)
 
 	return nil
 }
@@ -209,6 +223,27 @@ func (d *MemoryDatabase) UnblockUser(username string) error {
 	}
 
 	delete(d.blockedUsers, username)
+
+	// Create a new user if it does not exist and assign it to the default or first VLAN
+	if _, ok := d.users[username]; !ok { //nolint:nestif // Nested if statements are used for clarity
+		// Get default VLAN
+		defaultVLAN, err := d.GetDefaultVLAN()
+		if err != nil {
+			// Get first VLAN if the default VLAN does not exist
+			vlans, err := d.GetVLANs()
+			if err != nil {
+				return fmt.Errorf("error unblocking user: %w", err)
+			}
+
+			if len(vlans) == 0 {
+				return fmt.Errorf("error unblocking user: %w", database.ErrVLANNotFound)
+			}
+
+			defaultVLAN = vlans[0]
+		}
+
+		d.users[username] = &database.User{Username: username, VlanID: defaultVLAN.ID, Password: username}
+	}
 
 	return nil
 }
