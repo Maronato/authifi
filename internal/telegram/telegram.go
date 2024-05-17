@@ -155,19 +155,33 @@ func NewBotServer(ctx context.Context, cfg *config.Config, db database.Database)
 			vlanMap[vlan.ID] = vlan.Name
 		}
 
+		descriptionMap := make(map[string]string, len(devices))
+
+		for _, device := range devices {
+			if device.Description != "" {
+				descriptionMap[device.Username] = device.Description
+			}
+		}
+
 		msg := "*📋 Device List 📋*\n\n"
 
 		for _, device := range devices {
 			if device.Description == "" {
 				msg += fmt.Sprintf("• *%s* - %s\n", device.Username, vlanMap[device.VlanID])
 			} else {
-				msg += fmt.Sprintf("• *%s* (%s) - %s\n", device.Description, device.Username, vlanMap[device.VlanID])
+				msg += fmt.Sprintf("• *%s* - %s\n", device.Description, vlanMap[device.VlanID])
 			}
 		}
 
 		msg += "\n*🚫 Blocked Devices 🚫*\n\n"
+
 		for _, device := range blockedDevices {
-			msg += fmt.Sprintf("• *%s*\n", device.Username)
+			description, ok := descriptionMap[device.Username]
+			if !ok {
+				description = device.Username
+			}
+
+			msg += fmt.Sprintf("• *%s*\n", description)
 		}
 
 		if err := c.Send(msg, tele.ModeMarkdown); err != nil {
