@@ -1,8 +1,50 @@
 # 🛜 Authifi
 
-Authifi is a simple tool for easier MAC-based VLAN assignment on Unifi routers. It’s designed to be user-friendly and straightforward, with a Telegram bot for easy control and notifications.
+Authifi is a simple tool for easier MAC-based VLAN (Virtual LAN) assignment on Unifi routers. Designed to be user-friendly and straightforward, Authifi uses a Telegram bot for easy control and notifications. This tool automates the assignment of new devices to default VLANs, allowing you to manage your network effortlessly.
 
 Every time a new device connects to your network, Authifi can automatically assign it to a default VLAN and ask you what to do next via Telegram. You can then choose to assign the device to a different VLAN for future connections or block it entirely.
+
+Jump to the [Quick Start Guide](#quick-start-guide) to get it up and running in minutes.
+
+![Authifi Demo](.github/assets//demo.gif)
+
+## Key Features
+- 📋 **Default VLANs:** Assign new devices to a default VLAN automatically.
+- 🎛️ **Per-Device VLANs:** Assign specific VLANs to devices on the fly.
+- 🤖 **Telegram Bot Integration:** Control and receive updates directly on your phone in real-time.
+- 📝 **YAML Database:** Love it or hate it, it's dead simple to use and understand.
+- 🪶 **Lightweight:** Authifi is a tiny 8MB binary that won't even tickle your server's resources.
+- 🔄 **Automatic Updates:** Run the installation script again to update to the latest version.
+
+
+## Table of Contents
+- [🛜 Authifi](#-authifi)
+  - [Key Features](#key-features)
+  - [Table of Contents](#table-of-contents)
+  - [Why Authifi?](#why-authifi)
+  - [Quick Start Guide](#quick-start-guide)
+    - [Step 0: Prerequisites](#step-0-prerequisites)
+    - [Step 1: Create Your Telegram Bot](#step-1-create-your-telegram-bot)
+    - [Step 2: Find Your Telegram Chat ID](#step-2-find-your-telegram-chat-id)
+    - [Step 3: Generate a RADIUS Secret](#step-3-generate-a-radius-secret)
+    - [Step 4: Decide the IP and Port for Authifi](#step-4-decide-the-ip-and-port-for-authifi)
+    - [Step 5: SSH into your device](#step-5-ssh-into-your-device)
+    - [Step 6: Navigate to the folder wherein you want to install Authifi](#step-6-navigate-to-the-folder-wherein-you-want-to-install-authifi)
+    - [Step 7: Run the installation script](#step-7-run-the-installation-script)
+    - [Step 8: Add your VLANs to the database](#step-8-add-your-vlans-to-the-database)
+    - [Step 9: Restart Authifi to apply changes](#step-9-restart-authifi-to-apply-changes)
+    - [Step 10: Configure your Unifi Gateway](#step-10-configure-your-unifi-gateway)
+    - [Step 11: Test it out!](#step-11-test-it-out)
+  - [Updating Authifi](#updating-authifi)
+  - [Uninstalling Authifi](#uninstalling-authifi)
+  - [Telegram Bot Commands](#telegram-bot-commands)
+  - [Database file structure](#database-file-structure)
+  - [Configuration](#configuration)
+  - [Building from Source](#building-from-source)
+  - [Troubleshooting](#troubleshooting)
+  - [Disclaimer](#disclaimer)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Why Authifi?
 If you're like me you've probably tried to set up dynamic VLANs on your Unifi network only to find that it doesn't support default VLANs. Every time you want to add a new device, you must first find its MAC address somehow, then go to the Unifi controller and manually assign it to a VLAN. It's a hassle, especially if you want to add IOT or guest devices quickly.
@@ -10,19 +52,15 @@ If you're like me you've probably tried to set up dynamic VLANs on your Unifi ne
 Authifi solves this problem by letting you define a default VLAN for new devices and letting you quickly assign other VLANs or block devices in real-time from Telegram.
 
 
-![Authifi Demo](.github/assets//demo.gif)
-
-## Key Features
-- **Default VLANs:** Assign new devices to a default VLAN automatically.
-- **Per-Device VLANs:** Assign specific VLANs to devices on the fly.
-- **Telegram Bot Integration:** Control and receive updates directly on your phone in real-time.
-- **YAML Database:** Love it or hate it, it's dead simple to use and understand.
-- **Lightweight:** Authifi is a tiny 8MB binary that won't even tickle your server's resources.
-
 ## Quick Start Guide
 Follow these steps to get Authifi up and running with the minimum fuss.
 
 Tested on a Unifi Cloud Gateway Ultra and a MacBook Pro M2.
+
+### Step 0: Prerequisites
+- Unifi router or server with SSH access and network access
+- Basic knowledge of SSH and networking
+- A Telegram account for bot integration
 
 ### Step 1: Create Your Telegram Bot
 1. **Chat with BotFather:** Send `/newbot` to @BotFather on Telegram.
@@ -99,6 +137,25 @@ You can also configure it as a 802.1X profile for wired networks. Authifi should
 ### Step 11: Test it out!
 Connect a new device to your network and see if you receive a Telegram notification. You can then assign it to a different VLAN or block it.
 
+## Updating Authifi
+To update Authifi to the latest version, simply run the installation script again and follow the prompts. Authifi will automatically update to the latest version.
+
+```bash
+bash -c 'bash -c "$(curl -sL https://raw.githubusercontent.com/Maronato/authifi/main/install.sh)"'
+```
+
+## Uninstalling Authifi
+If you ever want to remove Authifi from your system, you can run the installation script and choose the uninstall option. This will remove the Authifi binary, configuration files, and the systemd service.
+
+```bash
+bash -c 'bash -c "$(curl -sL https://raw.githubusercontent.com/Maronato/authifi/main/install.sh)"'
+```
+
+## Telegram Bot Commands
+Authifi's Telegram bot has a few commands you can use to interact with it. Here's a list of the available commands:
+- **/list:** List all devices and their VLANs.
+- **/edit <device>:** Edit the name, VLAN, block, unblock, or delete a device.
+- **/help:** Show a list of available commands.
 
 ## Database file structure
 The database file is a simple YAML file that you can edit with any text editor. Here's a breakdown of the structure:
